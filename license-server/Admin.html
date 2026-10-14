@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  *{box-sizing:border-box}
+  body{font-family:Segoe UI,Arial,sans-serif;margin:0;padding:14px;background:#f4f6fb;color:#1f2937;font-size:13px}
+  h2{margin:0 0 10px;font-size:17px}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
+  input,select{padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px}
+  button{padding:7px 12px;border:0;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;background:#e2e8f0}
+  button.primary{background:#2563eb;color:#fff}
+  button.danger{background:#fee2e2;color:#b91c1c}
+  button.ok{background:#dcfce7;color:#15803d}
+  button.warn{background:#fef3c7;color:#b45309}
+  .card{background:#fff;border-radius:10px;padding:12px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .stats span{display:inline-block;margin-right:14px;font-weight:600}
+  table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden}
+  th,td{padding:8px 9px;text-align:left;border-bottom:1px solid #eef2f7;vertical-align:middle}
+  th{background:#eef2ff;font-size:11px;text-transform:uppercase;color:#475569}
+  .key{font-family:Consolas,monospace;font-weight:700;cursor:pointer}
+  .badge{padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700}
+  .active{background:#dcfce7;color:#15803d}.suspended{background:#fef3c7;color:#b45309}
+  .revoked,.expired{background:#fee2e2;color:#b91c1c}
+  .note{color:#b45309;font-size:11px}
+  .acts{display:flex;gap:4px;flex-wrap:wrap}
+  #msg{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:8px 14px;border-radius:8px;display:none}
+</style>
+</head>
+<body>
+<h2>Quản lý giấy phép SATIMA</h2>
+
+<div class="card">
+  <div class="bar">
+    <input id="name" placeholder="Tên người / cửa hàng" style="min-width:190px">
+    <input id="contact" placeholder="SĐT / Zalo / email">
+    <input id="days" type="number" min="1" placeholder="Số ngày (trống = vô hạn)" style="width:170px">
+    <button class="primary" onclick="createLicense()">+ Cấp giấy phép</button>
+  </div>
+  <div class="stats" id="stats"></div>
+</div>
+
+<div class="bar">
+  <input id="search" placeholder="Tìm theo mã / tên..." oninput="render()" style="min-width:220px">
+  <select id="filter" onchange="render()">
+    <option value="">Tất cả trạng thái</option>
+    <option value="active">Đang hoạt động</option>
+    <option value="suspended">Tạm ngưng</option>
+    <option value="revoked">Thu hồi</option>
+    <option value="expired">Hết hạn</option>
+  </select>
+  <button onclick="load()">Tải lại</button>
+</div>
+
+<table>
+  <thead><tr><th>Mã (bấm để chép)</th><th>Người dùng</th><th>Trạng thái</th><th>Hết hạn</th><th>Kiểm tra cuối</th><th>Thao tác</th></tr></thead>
+  <tbody id="rows"><tr><td colspan="6">Đang tải...</td></tr></tbody>
+</table>
+<div id="msg"></div>
+
+<script>
+let data = [];
+const labels = {active:'Hoạt động',suspended:'Tạm ngưng',revoked:'Thu hồi',expired:'Hết hạn'};
+
+function toast(text){const m=document.getElementById('msg');m.textContent=text;m.style.display='block';setTimeout(()=>m.style.display='none',2600)}
+function fmt(ms){if(!ms)return '—';const d=new Date(ms);return d.toLocaleDateString('vi-VN')+' '+d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})}
+function fmtDate(ms){return ms?new Date(ms).toLocaleDateString('vi-VN'):'Vô hạn'}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function effective(r){return r.status==='active'&&r.expiresAt&&r.expiresAt<Date.now()?'expired':r.status}
+
+function load(){
+  google.script.run.withSuccessHandler(rows=>{data=rows;render()}).withFailureHandler(e=>toast('Lỗi: '+e.message)).adminListLicenses();
+}
+
+function render(){
+  const q=document.getElementById('search').value.toLowerCase();
+  const f=document.getElementById('filter').value;
+  const counts={active:0,suspended:0,revoked:0,expired:0};
+  data.forEach(r=>{const s=effective(r);if(counts[s]!==undefined)counts[s]++});
+  document.getElementById('stats').innerHTML=
+    '<span>Tổng: '+data.length+'</span><span style="color:#15803d">Hoạt động: '+counts.active+'</span>'+
+    '<span style="color:#b45309">Tạm ngưng: '+counts.suspended+'</span><span style="color:#b91c1c">Hết hạn/Thu hồi: '+(counts.expired+counts.revoked)+'</span>';
+  const list=data.filter(r=>(!f||effective(r)===f)&&(!q||(r.key+' '+r.name).toLowerCase().includes(q)));
+  document.getElementById('rows').innerHTML=list.length?list.map(r=>{
+    const s=effective(r),k=esc(r.key);
+    return '<tr><td><span class="key" title="Bấm để chép" onclick="copyKey(\''+k+'\')">'+k+'</span></td>'+
+      '<td>'+esc(r.name)+'<br><small>'+esc(r.contact)+'</small></td>'+
+      '<td><span class="badge '+s+'">'+(labels[s]||esc(s))+'</span>'+(r.note?'<div class="note">'+esc(r.note)+'</div>':'')+'</td>'+
+      '<td>'+fmtDate(r.expiresAt)+'</td>'+
+      '<td>'+fmt(r.lastCheck)+'<br><small>'+esc(r.version)+(r.scriptId?' · gắn '+esc(r.scriptId.slice(0,8))+'…':' · chưa gắn')+'</small></td>'+
+      '<td><div class="acts">'+
+        (r.status==='active'?'<button class="warn" onclick="act(\''+k+'\',\'suspend\')">Tạm ngưng</button>':'<button class="ok" onclick="act(\''+k+'\',\'activate\')">Kích hoạt</button>')+
+        '<button onclick="extend(\''+k+'\')">Gia hạn</button>'+
+        '<button onclick="act(\''+k+'\',\'unbind\')">Gỡ gắn máy</button>'+
+        '<button class="danger" onclick="act(\''+k+'\',\'revoke\')">Thu hồi</button>'+
+      '</div></td></tr>';
+  }).join(''):'<tr><td colspan="6">Không có giấy phép phù hợp.</td></tr>';
+}
+
+function createLicense(){
+  const name=document.getElementById('name').value.trim();
+  if(!name){toast('Hãy nhập tên người nhận');return}
+  google.script.run.withSuccessHandler(key=>{
+    document.getElementById('name').value='';document.getElementById('contact').value='';document.getElementById('days').value='';
+    copyKey(key);load();
+  }).withFailureHandler(e=>toast('Lỗi: '+e.message)).adminCreateLicense(name,document.getElementById('contact').value.trim(),document.getElementById('days').value);
+}
+
+function act(key,action){
+  const text={revoke:'Thu hồi giấy phép này? Người dùng sẽ bị khoá.',suspend:'Tạm ngưng giấy phép này?',unbind:'Gỡ gắn bản triển khai để mã dùng được ở nơi khác?',activate:'Kích hoạt lại?'}[action];
+  if(!confirm(text))return;
+  google.script.run.withSuccessHandler(()=>{toast('Đã cập nhật');load()}).withFailureHandler(e=>toast('Lỗi: '+e.message)).adminUpdateLicense(key,action,null);
+}
+
+function extend(key){
+  const d=prompt('Gia hạn thêm bao nhiêu ngày (tính từ hôm nay hoặc từ ngày hết hạn hiện tại nếu còn hạn)?','365');
+  if(!d)return;
+  google.script.run.withSuccessHandler(()=>{toast('Đã gia hạn');load()}).withFailureHandler(e=>toast('Lỗi: '+e.message)).adminUpdateLicense(key,'extend',d);
+}
+
+function copyKey(key){
+  const t=document.createElement('textarea');t.value=key;document.body.appendChild(t);t.select();
+  try{document.execCommand('copy');toast('Đã chép mã: '+key)}catch(e){prompt('Chép mã:',key)}
+  t.remove();
+}
+load();
+</script>
+</body>
+</html>

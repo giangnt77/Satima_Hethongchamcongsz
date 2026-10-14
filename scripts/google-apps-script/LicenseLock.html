@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<title>SATIMA - Giấy phép</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#faf5ff;font-family:Segoe UI,Arial,sans-serif;color:#1f2937;padding:16px}
+  .box{background:#fff;border-radius:18px;box-shadow:0 10px 30px rgba(88,28,135,.15);padding:26px;max-width:440px;width:100%}
+  h1{margin:0 0 6px;font-size:22px;color:#6b21a8}
+  .msg{background:#fef3c7;color:#92400e;border-radius:10px;padding:10px 12px;font-size:14px;margin:12px 0}
+  label{display:block;font-size:12px;font-weight:700;margin:12px 0 4px;color:#475569}
+  input{width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px}
+  button{width:100%;margin-top:16px;padding:12px;border:0;border-radius:10px;background:#7e22ce;color:#fff;font-size:15px;font-weight:700;cursor:pointer}
+  button:disabled{opacity:.6}
+  #err{color:#b91c1c;font-size:13px;margin-top:10px;min-height:16px}
+  a{display:block;text-align:center;margin-top:14px;font-size:13px;color:#6b21a8}
+  small{color:#64748b}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>SATIMA</h1>
+  <div class="msg" id="msg"></div>
+  <small>Chủ doanh nghiệp nhập mã giấy phép để kích hoạt. Nhân viên vui lòng báo chủ quán.</small>
+  <label for="key">Mã giấy phép</label>
+  <input id="key" placeholder="SATI-XXXX-XXXX-XXXX" autocomplete="off">
+  <label for="pin">PIN chủ doanh nghiệp</label>
+  <input id="pin" type="password" autocomplete="off" inputmode="numeric">
+  <button id="go" onclick="activate()">Kích hoạt</button>
+  <div id="err"></div>
+  <a id="exportLink">Vào Admin để xuất dữ liệu</a>
+</div>
+<script>
+  document.getElementById('msg').textContent = <?!= JSON.stringify(message) ?>;
+  document.getElementById('exportLink').href = <?!= JSON.stringify(adminUrl) ?>;
+  function activate() {
+    const err = document.getElementById('err'), btn = document.getElementById('go');
+    err.textContent = '';
+    btn.disabled = true;
+    google.script.run
+      .withSuccessHandler(function (result) {
+        btn.disabled = false;
+        if (result && result.ok) { top.location.reload(); return; }
+        err.textContent = (result && result.message) || 'Không kích hoạt được.';
+      })
+      .withFailureHandler(function (e) { btn.disabled = false; err.textContent = 'Lỗi: ' + e.message; })
+      .activateLicense(document.getElementById('key').value, document.getElementById('pin').value);
+  }
+</script>
+</body>
+</html>

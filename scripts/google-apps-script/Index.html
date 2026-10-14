@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#faf5ff">
+    <title>Salary &amp; Timekeeping Management System</title>
+    <?!= include('Styles'); ?>
+  </head>
+  <body>
+    <div class="bg-orb bg-orb-1" aria-hidden="true"></div>
+    <div class="bg-orb bg-orb-2" aria-hidden="true"></div>
+    <div class="bg-orb bg-orb-3" aria-hidden="true"></div>
+    <div id="app">    </div>
+    <?!= include('Logo'); ?>
+    <script>
+      window.__GAS_WEB_APP_URL = <?!= JSON.stringify(webAppUrl) ?>;
+      window.__GAS_PAGE = <?!= JSON.stringify(page) ?>;
+    </script>
+    <? if (page === 'admin') { ?>
+      <?!= include('SoftwareInfo'); ?>
+      <script>window.__GAS_ADMIN_CHUNKS = [];</script>
+      <?!= include('AdminFrontendPart1'); ?>
+      <?!= include('AdminFrontendPart2'); ?>
+      <?!= include('AdminFrontendPart3'); ?>
+      <?!= include('AdminFrontendPart4'); ?>
+      <?!= include('AdminFrontendPart5'); ?>
+      <?!= include('AdminFrontendPart6'); ?>
+      <?!= include('AdminFrontendPart7'); ?>
+      <?!= include('AdminFrontendPart8'); ?>
+      <?!= include('AdminFrontendPart9'); ?>
+      <?!= include('AdminFrontendPart10'); ?>
+      <?!= include('AdminFrontend'); ?>
+    <? } else { ?>
+      <?!= include('EmployeeFrontend'); ?>
+    <? } ?>
+  </body>
+</html>
